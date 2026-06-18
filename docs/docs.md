@@ -59,11 +59,13 @@ Manages CLI parameter parsing.
 All database routines are in the `db/` package. The design enforces explicit function signatures rather than generic ORM queries.
 
 ### 3.1 `db/db.go` & `db/schema.sql`
-- **`schema.sql`**: Contains `CREATE TABLE IF NOT EXISTS` for four tables:
-  1. `api_keys`: `id` (PK), `provider`, `label`, `key_value`, `base_url`, `created_at`.
-  2. `conversations`: `id` (UUID PK), `title`, `provider`, `model`, `system_prompt`, `created_at`, `updated_at`.
-  3. `messages`: `id` (PK AUTOINCREMENT), `conversation_id` (FK cascading), `role`, `content`, `token_count`, `created_at`.
-  4. `settings`: `key` (PK), `value`.
+- **`schema.sql`**: Contains `CREATE TABLE IF NOT EXISTS` for tables:
+  1. `users`: `id` (PK), `username` (UNIQUE), `password_hash`, `role` (admin/user), `created_at`.
+  2. `sessions`: `id` (UUID PK), `user_id` (FK cascading), `expires_at`, `created_at`.
+  3. `api_keys`: `id` (PK), `user_id` (FK cascading), `provider`, `label`, `key_value`, `base_url`, `is_shared`, `created_at`.
+  4. `conversations`: `id` (UUID PK), `user_id` (FK cascading), `title`, `provider`, `model`, `system_prompt`, `created_at`, `updated_at`.
+  5. `messages`: `id` (PK AUTOINCREMENT), `conversation_id` (FK cascading), `role`, `content`, `token_count`, `created_at`.
+  6. `settings`: `key` (PK), `value`.
 - **`func OpenDB(path string) (*sql.DB, error)`**: Opens the DB and enforces a ping verify. Returns `*sql.DB`.
 - **`func Migrate(db *sql.DB) error`**: Runs the embedded `schema.sql` text as a raw execution payload. Safe to run sequentially due to `IF NOT EXISTS`.
 
@@ -81,15 +83,18 @@ Contains all chat history storage logic.
 - **`func DeleteMessage(db *sql.DB, id int64) error`**: Singular message deletion.
 
 ### 3.3 `db/keys.go`
-Contains storage logic for API keys and global settings.
-- **`type APIKey struct`**: Holds the credentials. Includes `base_url` for routing requests to proxy APIs (like LM Studio).
-- **`func CreateKey(db *sql.DB, provider, label, keyValue, baseURL string) (*APIKey, error)`**: Basic `INSERT`.
-- **`func ListKeys(db *sql.DB) ([]APIKey, error)`**: **CRITICAL SECURITY MEASURE**: When listing keys for the UI to display, this function manually overwrites the `KeyValue` struct property to `"****" + kv[len(kv)-4:]` (or just `"****"` if too short). This guarantees raw keys are never sent in bulk payload to the browser.
-- **`func GetKeyValue(db *sql.DB, id int64) (string, string, error)`**: Fetches the **unredacted** raw key and `baseURL` for server-side API requests.
-- **`func UpdateKey(db *sql.DB, id int64, label, baseURL string) error`**: Edits the non-secret metadata.
-- **`func DeleteKey(db *sql.DB, id int64) error`**: Removes the key row entirely.
-- **`func GetSetting(db *sql.DB, key string) (string, error)`**: Queries the `settings` table. Ignores `sql.ErrNoRows` returning `""`.
-- **`func SetSetting(db *sql.DB, key, value string) error`**: UPSERT operation using SQLite's `ON CONFLICT(key) DO UPDATE SET value=excluded.value`.
+Contains storage logic for API keys and global settings. Now scopes keys to specific `user_id`s, while Admins can set `is_shared=true` for global keys.
+- **`type APIKey struct`**: Holds credentials, including `base_url`, `user_id`, and `is_shared`.
+- **`func CreateKey(db *sql.DB, userID int64, provider, label, keyValue, baseURL string, isShared bool)`**: Basic `INSERT` with scoping.
+- **`func ListKeys(db *sql.DB, userID int64, role string)`**: **CRITICAL SECURITY MEASURE**: Manually overwrites `KeyValue` to `"****" + kv[len(kv)-4:]` before sending to the UI. It returns personal keys plus any `is_shared=true` keys.
+- **`func GetKeyValue(db *sql.DB, id int64, userID int64, role string) (string, string, error)`**: Fetches the unredacted key for server-side use, ensuring access rights.
+
+### 3.4 `db/users.go`
+Handles authentication and user lifecycle.
+- **`type User struct` / `type Session struct`**: Core auth models.
+- **`func CreateUser(db *sql.DB, username, password string) error`**: Uses bcrypt to hash passwords. Automatically assigns `admin` role to the first registered user.
+- **`func AuthenticateUser(db *sql.DB, username, password string) (*User, error)`**: Verifies bcrypt hash.
+- **`func CreateSession(...)` / `func GetSessionUser(...)`**: Issues UUID session tokens and validates them against the `sessions` table.
 
 ---
 
@@ -137,6 +142,13 @@ Wrappers for API Key interactions.
 - **`handleOllamaStatus`**: Invokes Ollama directly to test connectivity. Used by frontend to show green/gray pill dot.
 - **`handleOllamaURL`**: Edits the `ollama_url` setting and injects it into memory.
 - **`func writeJSON` / `func decodeJSON`**: Universal marshaling helpers to DRY up handlers.
+
+### 4.5 `server/handlers_auth.go` & `server/middleware.go`
+- **`handleSetup`**: Enables the initial admin registration (only functional when `users` table is empty).
+- **`handleLogin`**: Authenticates user, creates a DB session, and sets a secure HTTP-only `session_token` cookie.
+- **`handleLogout`**: Deletes the session from the DB and clears the cookie.
+- **`AuthMiddleware`**: Intercepts requests, validates the cookie against `db.GetSessionUser`, and injects the `*db.User` into the HTTP Request Context. Redirects `401 Unauthorized` on failure.
+- **`AdminMiddleware`**: Further guards endpoints (like `/api/users`), returning `403 Forbidden` if the context user is not an `admin`.
 
 ---
 
@@ -300,6 +312,14 @@ The Application Bootstrapper bound to `DOMContentLoaded`.
 - Configures Modal click-outside-to-close behavior utilizing `e.target` delegation vs explicit modal boundaries.
 - Loops UI tabs and sets `.active` states based on `data-tab` parameters.
 - Triggers Welcome Chip clicks, dropping template prompts directly into the textarea and calling `focus()`.
+
+### 8.6 `web/static/js/auth.js`
+Handles all authentication logic and the Admin Panel.
+- **`checkAuth()`**: Initial validation against `/api/auth/me` on load. 
+- **Global `fetch` Interceptor**: Overrides `window.fetch` to globally catch `401 Unauthorized` responses, automatically wiping local state and forcing the Auth Modal.
+- **`showAuthOverlay(mode)`**: Toggles between `login` and `setup` states for the full-screen auth wall.
+- **`login(username, password)` / `setup(username, password)`**: Performs credentials submission.
+- **`loadAdminPanel()`**: If the logged-in user is an admin, fetches the user list and renders the UI table.
 
 ---
 *End of Comprehensive Documentation. Every file, interface, network constraint, and styling pipeline behaves strictly according to this blueprint.*
