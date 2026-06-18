@@ -1,10 +1,13 @@
 // ── main.js — app initialization & event binding ───────────────
 document.addEventListener('DOMContentLoaded', async () => {
 
-  // ── Initial data load ──────────────────────────────────────
-  await Promise.all([loadConversations(), loadKeys(), checkOllama()]);
-  await populateModels(State.provider);
-  populateKeySelector();
+  // ── Initial data load (checked with Auth) ───────────────────
+  await window.checkAuth();
+  if (window.AuthState.authenticated) {
+    await Promise.all([loadConversations(), loadKeys(), checkOllama()]);
+    await populateModels(State.provider);
+    populateKeySelector();
+  }
 
   // ── Provider selector ──────────────────────────────────────
   document.getElementById('sel-provider').addEventListener('change', async e => {
@@ -90,16 +93,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const label    = document.getElementById('new-key-label').value.trim();
     const keyValue = document.getElementById('new-key-value').value.trim();
     const baseURL  = document.getElementById('new-key-baseurl').value.trim();
+    const isSharedCheck = document.getElementById('new-key-shared');
+    const isShared = isSharedCheck ? isSharedCheck.checked : false;
+
     if (!label || !keyValue) { toast('Label and key are required', 'error'); return; }
     const res = await fetch('/api/keys', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({provider, label, key_value: keyValue, base_url: baseURL}),
+      body: JSON.stringify({provider, label, key_value: keyValue, base_url: baseURL, is_shared: isShared}),
     });
     if (res.ok) {
       document.getElementById('new-key-label').value = '';
       document.getElementById('new-key-value').value = '';
       document.getElementById('new-key-baseurl').value = '';
+      if (isSharedCheck) isSharedCheck.checked = false;
       await loadKeys();
       toast('API key added', 'success');
     } else {

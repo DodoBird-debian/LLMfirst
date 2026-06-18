@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 // Conversation represents a chat session.
 type Conversation struct {
 	ID           string    `json:"id"`
+	UserID       int64     `json:"user_id"`
 	Title        string    `json:"title"`
 	Provider     string    `json:"provider"`
 	Model        string    `json:"model"`
@@ -29,32 +31,47 @@ type Message struct {
 }
 
 // CreateConversation inserts a new conversation and returns it.
-func CreateConversation(db *sql.DB, provider, model, systemPrompt string) (*Conversation, error) {
+func CreateConversation(db *sql.DB, userID int64, provider, model, systemPrompt string) (*Conversation, error) {
 	id := uuid.New().String()
 	_, err := db.Exec(
-		`INSERT INTO conversations (id, provider, model, system_prompt) VALUES (?, ?, ?, ?)`,
-		id, provider, model, systemPrompt,
+		`INSERT INTO conversations (id, user_id, provider, model, system_prompt) VALUES (?, ?, ?, ?, ?)`,
+		id, userID, provider, model, systemPrompt,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return GetConversation(db, id)
+	return GetConversation(db, id, userID, "admin") // bypass check since it's just created
 }
 
 // GetConversation retrieves a conversation by ID.
-func GetConversation(db *sql.DB, id string) (*Conversation, error) {
-	row := db.QueryRow(`SELECT id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations WHERE id = ?`, id)
+func GetConversation(db *sql.DB, id string, currentUserID int64, role string) (*Conversation, error) {
+	var row *sql.Row
+	if role == "admin" {
+		row = db.QueryRow(`SELECT id, user_id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations WHERE id = ?`, id)
+	} else {
+		row = db.QueryRow(`SELECT id, user_id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations WHERE id = ? AND user_id = ?`, id, currentUserID)
+	}
 	c := &Conversation{}
-	err := row.Scan(&c.ID, &c.Title, &c.Provider, &c.Model, &c.SystemPrompt, &c.CreatedAt, &c.UpdatedAt)
+	var uid sql.NullInt64
+	err := row.Scan(&c.ID, &uid, &c.Title, &c.Provider, &c.Model, &c.SystemPrompt, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if uid.Valid {
+		c.UserID = uid.Int64
 	}
 	return c, nil
 }
 
 // ListConversations returns all conversations ordered by updated_at desc.
-func ListConversations(db *sql.DB) ([]Conversation, error) {
-	rows, err := db.Query(`SELECT id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations ORDER BY updated_at DESC`)
+func ListConversations(db *sql.DB, currentUserID int64, role string) ([]Conversation, error) {
+	var rows *sql.Rows
+	var err error
+	if role == "admin" {
+		rows, err = db.Query(`SELECT id, user_id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations ORDER BY updated_at DESC`)
+	} else {
+		rows, err = db.Query(`SELECT id, user_id, title, provider, model, COALESCE(system_prompt,''), created_at, updated_at FROM conversations WHERE user_id = ? ORDER BY updated_at DESC`, currentUserID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +79,12 @@ func ListConversations(db *sql.DB) ([]Conversation, error) {
 	var out []Conversation
 	for rows.Next() {
 		var c Conversation
-		if err := rows.Scan(&c.ID, &c.Title, &c.Provider, &c.Model, &c.SystemPrompt, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		var uid sql.NullInt64
+		if err := rows.Scan(&c.ID, &uid, &c.Title, &c.Provider, &c.Model, &c.SystemPrompt, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if uid.Valid {
+			c.UserID = uid.Int64
 		}
 		out = append(out, c)
 	}
@@ -71,19 +92,50 @@ func ListConversations(db *sql.DB) ([]Conversation, error) {
 }
 
 // UpdateConversation updates title and system_prompt.
-func UpdateConversation(db *sql.DB, id, title, systemPrompt string) error {
+func UpdateConversation(db *sql.DB, id, title, systemPrompt string, currentUserID int64, role string) error {
+	if role != "admin" {
+		var uid sql.NullInt64
+		err := db.QueryRow(`SELECT user_id FROM conversations WHERE id=?`, id).Scan(&uid)
+		if err != nil {
+			return err
+		}
+		if !uid.Valid || uid.Int64 != currentUserID {
+			return fmt.Errorf("unauthorized to update this conversation")
+		}
+	}
 	_, err := db.Exec(`UPDATE conversations SET title=?, system_prompt=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, title, systemPrompt, id)
 	return err
 }
 
 // DeleteConversation deletes a conversation (messages cascade).
-func DeleteConversation(db *sql.DB, id string) error {
+func DeleteConversation(db *sql.DB, id string, currentUserID int64, role string) error {
+	if role != "admin" {
+		var uid sql.NullInt64
+		err := db.QueryRow(`SELECT user_id FROM conversations WHERE id=?`, id).Scan(&uid)
+		if err != nil {
+			return err
+		}
+		if !uid.Valid || uid.Int64 != currentUserID {
+			return fmt.Errorf("unauthorized to delete this conversation")
+		}
+	}
 	_, err := db.Exec(`DELETE FROM conversations WHERE id=?`, id)
 	return err
 }
 
 // SaveMessage appends a message to a conversation.
-func SaveMessage(db *sql.DB, convID, role, content string, tokenCount int) (*Message, error) {
+func SaveMessage(db *sql.DB, convID, role, content string, tokenCount int, currentUserID int64, userRole string) (*Message, error) {
+	if userRole != "admin" {
+		var uid sql.NullInt64
+		err := db.QueryRow(`SELECT user_id FROM conversations WHERE id=?`, convID).Scan(&uid)
+		if err != nil {
+			return nil, err
+		}
+		if !uid.Valid || uid.Int64 != currentUserID {
+			return nil, fmt.Errorf("unauthorized to add messages to this conversation")
+		}
+	}
+
 	res, err := db.Exec(`INSERT INTO messages (conversation_id, role, content, token_count) VALUES (?, ?, ?, ?)`, convID, role, content, tokenCount)
 	if err != nil {
 		return nil, err
@@ -95,7 +147,18 @@ func SaveMessage(db *sql.DB, convID, role, content string, tokenCount int) (*Mes
 }
 
 // GetMessages returns all messages for a conversation ordered by id.
-func GetMessages(db *sql.DB, convID string) ([]Message, error) {
+func GetMessages(db *sql.DB, convID string, currentUserID int64, role string) ([]Message, error) {
+	if role != "admin" {
+		var uid sql.NullInt64
+		err := db.QueryRow(`SELECT user_id FROM conversations WHERE id=?`, convID).Scan(&uid)
+		if err != nil {
+			return nil, err
+		}
+		if !uid.Valid || uid.Int64 != currentUserID {
+			return nil, fmt.Errorf("unauthorized to access this conversation")
+		}
+	}
+
 	rows, err := db.Query(`SELECT id, conversation_id, role, content, COALESCE(token_count,0), created_at FROM messages WHERE conversation_id=? ORDER BY id ASC`, convID)
 	if err != nil {
 		return nil, err
@@ -113,7 +176,21 @@ func GetMessages(db *sql.DB, convID string) ([]Message, error) {
 }
 
 // DeleteMessage deletes a single message by ID.
-func DeleteMessage(db *sql.DB, id int64) error {
+func DeleteMessage(db *sql.DB, id int64, currentUserID int64, role string) error {
+	if role != "admin" {
+		var uid sql.NullInt64
+		err := db.QueryRow(`
+			SELECT c.user_id 
+			FROM messages m 
+			JOIN conversations c ON m.conversation_id = c.id 
+			WHERE m.id = ?`, id).Scan(&uid)
+		if err != nil {
+			return err
+		}
+		if !uid.Valid || uid.Int64 != currentUserID {
+			return fmt.Errorf("unauthorized to delete this message")
+		}
+	}
 	_, err := db.Exec(`DELETE FROM messages WHERE id=?`, id)
 	return err
 }

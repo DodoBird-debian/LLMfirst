@@ -24,6 +24,12 @@ type chatRequest struct {
 
 func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		var req chatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -35,7 +41,7 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 			last := req.Messages[len(req.Messages)-1]
 			if last.Role == "user" {
 				tokenCount := len(last.Content) / 4
-				_, _ = appdb.SaveMessage(db, req.ConversationID, last.Role, last.Content, tokenCount)
+				_, _ = appdb.SaveMessage(db, req.ConversationID, last.Role, last.Content, tokenCount, currentUser.ID, currentUser.Role)
 			}
 		}
 
@@ -59,7 +65,7 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 		// Get key
 		var apiKey, baseURL string
 		if req.KeyID > 0 {
-			apiKey, baseURL, err = appdb.GetKeyValue(db, secret, req.KeyID)
+			apiKey, baseURL, err = appdb.GetKeyValue(db, secret, req.KeyID, currentUser.ID, currentUser.Role)
 			if err != nil {
 				fmt.Fprintf(w, "data: {\"error\": %q}\n\n", err.Error())
 				flusher.Flush()
@@ -87,7 +93,7 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 		// Persist full assistant response
 		if req.ConversationID != "" {
 			tokenCount := len(full) / 4
-			_, _ = appdb.SaveMessage(db, req.ConversationID, "assistant", full, tokenCount)
+			_, _ = appdb.SaveMessage(db, req.ConversationID, "assistant", full, tokenCount, currentUser.ID, currentUser.Role)
 		}
 
 		fmt.Fprintf(w, "data: [DONE]\n\n")
@@ -97,7 +103,12 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 
 func handleListConversations(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		convs, err := appdb.ListConversations(db)
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		convs, err := appdb.ListConversations(db, currentUser.ID, currentUser.Role)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -108,13 +119,19 @@ func handleListConversations(db *sql.DB) http.HandlerFunc {
 
 func handleCreateConversation(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		var body struct {
 			Provider     string `json:"provider"`
 			Model        string `json:"model"`
 			SystemPrompt string `json:"system_prompt"`
 		}
 		json.NewDecoder(r.Body).Decode(&body)
-		conv, err := appdb.CreateConversation(db, body.Provider, body.Model, body.SystemPrompt)
+		conv, err := appdb.CreateConversation(db, currentUser.ID, body.Provider, body.Model, body.SystemPrompt)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -126,13 +143,19 @@ func handleCreateConversation(db *sql.DB) http.HandlerFunc {
 
 func handleGetConversation(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		id := chi.URLParam(r, "id")
-		conv, err := appdb.GetConversation(db, id)
+		conv, err := appdb.GetConversation(db, id, currentUser.ID, currentUser.Role)
 		if err != nil {
 			http.Error(w, "not found", 404)
 			return
 		}
-		msgs, err := appdb.GetMessages(db, id)
+		msgs, err := appdb.GetMessages(db, id, currentUser.ID, currentUser.Role)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -143,13 +166,19 @@ func handleGetConversation(db *sql.DB) http.HandlerFunc {
 
 func handleUpdateConversation(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		id := chi.URLParam(r, "id")
 		var body struct {
 			Title        string `json:"title"`
 			SystemPrompt string `json:"system_prompt"`
 		}
 		json.NewDecoder(r.Body).Decode(&body)
-		if err := appdb.UpdateConversation(db, id, body.Title, body.SystemPrompt); err != nil {
+		if err := appdb.UpdateConversation(db, id, body.Title, body.SystemPrompt, currentUser.ID, currentUser.Role); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
@@ -159,8 +188,14 @@ func handleUpdateConversation(db *sql.DB) http.HandlerFunc {
 
 func handleDeleteConversation(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		id := chi.URLParam(r, "id")
-		if err := appdb.DeleteConversation(db, id); err != nil {
+		if err := appdb.DeleteConversation(db, id, currentUser.ID, currentUser.Role); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
@@ -170,6 +205,12 @@ func handleDeleteConversation(db *sql.DB) http.HandlerFunc {
 
 func handleAddMessage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		convID := chi.URLParam(r, "id")
 		var body struct {
 			Role    string `json:"role"`
@@ -177,7 +218,7 @@ func handleAddMessage(db *sql.DB) http.HandlerFunc {
 		}
 		json.NewDecoder(r.Body).Decode(&body)
 		tokenCount := len(body.Content) / 4
-		msg, err := appdb.SaveMessage(db, convID, body.Role, body.Content, tokenCount)
+		msg, err := appdb.SaveMessage(db, convID, body.Role, body.Content, tokenCount, currentUser.ID, currentUser.Role)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -189,9 +230,15 @@ func handleAddMessage(db *sql.DB) http.HandlerFunc {
 
 func handleDeleteMessage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		currentUser := UserFromContext(r.Context())
+		if currentUser == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		idStr := chi.URLParam(r, "id")
 		id, _ := strconv.ParseInt(idStr, 10, 64)
-		if err := appdb.DeleteMessage(db, id); err != nil {
+		if err := appdb.DeleteMessage(db, id, currentUser.ID, currentUser.Role); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}

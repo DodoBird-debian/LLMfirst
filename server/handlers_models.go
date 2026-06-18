@@ -35,7 +35,16 @@ func handleModels(db *sql.DB, reg *providers.Registry, secret string) http.Handl
 		var apiKey, baseURL string
 		if keyIDStr != "" {
 			if id, err := strconv.ParseInt(keyIDStr, 10, 64); err == nil && id > 0 {
-				apiKey, baseURL, _ = appdb.GetKeyValue(db, secret, id)
+				currentUser := UserFromContext(r.Context())
+				if currentUser == nil {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+				apiKey, baseURL, err = appdb.GetKeyValue(db, secret, id, currentUser.ID, currentUser.Role)
+				if err != nil {
+					http.Error(w, "Forbidden: "+err.Error(), http.StatusForbidden)
+					return
+				}
 			}
 		}
 

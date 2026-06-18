@@ -655,3 +655,223 @@ select:focus  { border-color: var(--col-accent); box-shadow: 0 0 0 3px var(--col
   color: var(--col-text-3);
   font-size: 0.82rem;
 }
+
+/* ── Auth Overlay & Sign In ─────────────────────────────────────── */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 16, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn var(--t-mid);
+}
+
+.auth-box {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border-2);
+  border-radius: var(--r-xl);
+  width: min(400px, 90vw);
+  padding: var(--sp-8) var(--sp-6);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  animation: slideUp var(--t-mid);
+}
+
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-2);
+}
+
+.auth-header .logo {
+  margin-bottom: var(--sp-4);
+}
+
+.auth-header h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--col-text);
+}
+
+.auth-subtitle {
+  font-size: 0.85rem;
+  color: var(--col-text-3);
+  line-height: 1.5;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* ── User dropdown menu ────────────────────────────────────────── */
+.user-menu-container {
+  position: relative;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  right: 0;
+  background: var(--col-surface);
+  border: 1px solid var(--col-border-2);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  width: 200px;
+  z-index: 1000;
+  padding: var(--sp-2) 0;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn var(--t-fast);
+}
+
+.user-dropdown-header {
+  padding: var(--sp-2) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-dropdown-header #dropdown-username {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--col-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  width: fit-content;
+  text-transform: uppercase;
+}
+
+.user-role-badge.admin {
+  background: rgba(124, 106, 247, 0.15);
+  color: var(--col-accent);
+}
+
+.user-role-badge.user {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--col-text-2);
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background: var(--col-border);
+  margin: var(--sp-2) 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-4);
+  background: transparent;
+  border: none;
+  color: var(--col-text-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-fast);
+}
+
+.dropdown-item:hover {
+  background: var(--col-surface-2);
+  color: var(--col-text);
+}
+
+.dropdown-item.danger {
+  color: var(--col-error);
+}
+
+.dropdown-item.danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--col-error);
+}
+
+/* ── Admin panel users list ───────────────────────────────────── */
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  background: var(--col-surface-2);
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.user-name {
+  font-size: 0.85rem;
+  color: var(--col-text);
+  font-weight: 500;
+}
+
+.btn-delete-user {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--col-text-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all var(--t-fast);
+}
+
+.btn-delete-user:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--col-error);
+}
+
+/* ── Checkboxes ───────────────────────────────────────────────── */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--col-text-2);
+  user-select: none;
+}
+
+.checkbox-container input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
