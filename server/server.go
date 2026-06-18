@@ -31,10 +31,10 @@ func NewRouter(db *sql.DB, cfg config.Config) http.Handler {
 	r.Get("/api/health", handleHealth(db))
 
 	// Models
-	r.Get("/api/models", handleModels(db, reg))
+	r.Get("/api/models", handleModels(db, reg, cfg.Secret))
 
 	// Chat (SSE streaming)
-	r.Post("/api/chat", handleChat(db, reg))
+	r.Post("/api/chat", handleChat(db, reg, cfg.Secret))
 
 	// Ollama
 	r.Get("/api/ollama/status", handleOllamaStatus(reg))
@@ -52,8 +52,8 @@ func NewRouter(db *sql.DB, cfg config.Config) http.Handler {
 	r.Delete("/api/messages/{id}", handleDeleteMessage(db))
 
 	// API Keys
-	r.Get("/api/keys", handleListKeys(db))
-	r.Post("/api/keys", handleCreateKey(db))
+	r.Get("/api/keys", handleListKeys(db, cfg.Secret))
+	r.Post("/api/keys", handleCreateKey(db, cfg.Secret))
 	r.Put("/api/keys/{id}", handleUpdateKey(db))
 	r.Delete("/api/keys/{id}", handleDeleteKey(db))
 

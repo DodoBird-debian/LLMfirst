@@ -22,7 +22,7 @@ type chatRequest struct {
 	Messages       []providers.Message `json:"messages"`
 }
 
-func handleChat(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
+func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req chatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -34,7 +34,8 @@ func handleChat(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
 		if len(req.Messages) > 0 {
 			last := req.Messages[len(req.Messages)-1]
 			if last.Role == "user" {
-				_, _ = appdb.SaveMessage(db, req.ConversationID, last.Role, last.Content, 0)
+				tokenCount := len(last.Content) / 4
+				_, _ = appdb.SaveMessage(db, req.ConversationID, last.Role, last.Content, tokenCount)
 			}
 		}
 
@@ -58,7 +59,7 @@ func handleChat(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
 		// Get key
 		var apiKey, baseURL string
 		if req.KeyID > 0 {
-			apiKey, baseURL, err = appdb.GetKeyValue(db, req.KeyID)
+			apiKey, baseURL, err = appdb.GetKeyValue(db, secret, req.KeyID)
 			if err != nil {
 				fmt.Fprintf(w, "data: {\"error\": %q}\n\n", err.Error())
 				flusher.Flush()
@@ -85,7 +86,8 @@ func handleChat(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
 
 		// Persist full assistant response
 		if req.ConversationID != "" {
-			_, _ = appdb.SaveMessage(db, req.ConversationID, "assistant", full, 0)
+			tokenCount := len(full) / 4
+			_, _ = appdb.SaveMessage(db, req.ConversationID, "assistant", full, tokenCount)
 		}
 
 		fmt.Fprintf(w, "data: [DONE]\n\n")
@@ -174,7 +176,8 @@ func handleAddMessage(db *sql.DB) http.HandlerFunc {
 			Content string `json:"content"`
 		}
 		json.NewDecoder(r.Body).Decode(&body)
-		msg, err := appdb.SaveMessage(db, convID, body.Role, body.Content, 0)
+		tokenCount := len(body.Content) / 4
+		msg, err := appdb.SaveMessage(db, convID, body.Role, body.Content, tokenCount)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

@@ -76,7 +76,7 @@ func (p *AnthropicProvider) ChatStream(ctx context.Context, model, apiKey, baseU
 	payload := map[string]interface{}{
 		"model":      model,
 		"stream":     true,
-		"max_tokens": 4096,
+		"max_tokens": 8192,
 		"messages":   chatMsgs,
 	}
 	if systemPrompt != "" {
@@ -109,6 +109,9 @@ func (p *AnthropicProvider) ChatStream(ctx context.Context, model, apiKey, baseU
 		defer resp.Body.Close()
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
+			if ctx.Err() != nil {
+				break
+			}
 			line := scanner.Text()
 			if !strings.HasPrefix(line, "data: ") {
 				continue

@@ -90,18 +90,25 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 	}
 
 	var contents []content
+	var systemInstruction *content
 	for _, m := range messages {
 		role := m.Role
 		if role == "assistant" {
 			role = "model"
 		}
 		if role == "system" {
+			systemInstruction = &content{Role: "system", Parts: []part{{Text: m.Content}}}
 			continue
 		}
 		contents = append(contents, content{Role: role, Parts: []part{{Text: m.Content}}})
 	}
 
 	payload := map[string]interface{}{"contents": contents}
+	if systemInstruction != nil {
+		payload["system_instruction"] = map[string]interface{}{
+			"parts": systemInstruction.Parts,
+		}
+	}
 	body, _ := json.Marshal(payload)
 
 	streamURL, err := neturl.Parse(fmt.Sprintf("%s/models/%s:streamGenerateContent", baseURL, model))
@@ -135,6 +142,9 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		defer resp.Body.Close()
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
+			if ctx.Err() != nil {
+				break
+			}
 			line := scanner.Text()
 			if !strings.HasPrefix(line, "data: ") {
 				continue

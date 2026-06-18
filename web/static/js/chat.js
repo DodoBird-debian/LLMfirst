@@ -7,10 +7,19 @@ window.sendMessage = async function() {
   if (!text || State.streaming) return;
   if (!State.model) { toast('Please select a model first', 'error'); return; }
 
+  // Instantly lock UI to prevent duplicate submissions on rapid clicks
+  State.streaming = true;
+  toggleSendStop(true);
+
   // Ensure we have an active conversation
   if (!State.activeConvId) {
     const conv = await createNewConversation();
-    if (!conv) { toast('Failed to create conversation', 'error'); return; }
+    if (!conv) { 
+      toast('Failed to create conversation', 'error'); 
+      State.streaming = false;
+      toggleSendStop(false);
+      return; 
+    }
   }
 
   // Add user message to UI
@@ -27,9 +36,7 @@ window.sendMessage = async function() {
 };
 
 window.startStreaming = async function(msgs) {
-  State.streaming = true;
   State.abortController = new AbortController();
-  toggleSendStop(true);
   removeTypingIndicator();
   showTypingIndicator();
 
@@ -215,11 +222,27 @@ window.deleteKey = async function(id) {
 window.toggleSendStop = function(streaming) {
   document.getElementById('btn-send').style.display = streaming ? 'none' : '';
   document.getElementById('btn-stop').style.display = streaming ? '' : 'none';
+  document.getElementById('sel-provider').disabled = streaming;
+  document.getElementById('sel-model').disabled = streaming;
+  document.getElementById('sel-key').disabled = streaming;
 };
 
+let ghostTextarea = null;
 window.autoResize = function(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  if (!ghostTextarea) {
+    ghostTextarea = document.createElement('div');
+    ghostTextarea.style.cssText = 'position:absolute; visibility:hidden; white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;';
+    document.body.appendChild(ghostTextarea);
+  }
+  const comp = window.getComputedStyle(el);
+  ghostTextarea.style.width = comp.width;
+  ghostTextarea.style.font = comp.font;
+  ghostTextarea.style.padding = comp.padding;
+  ghostTextarea.style.lineHeight = comp.lineHeight;
+  ghostTextarea.style.boxSizing = comp.boxSizing;
+  
+  ghostTextarea.textContent = el.value + '\n';
+  el.style.height = Math.min(ghostTextarea.scrollHeight, 200) + 'px';
 };
 
 window.updateCharCount = function() {

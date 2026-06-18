@@ -20,7 +20,7 @@ func handleHealth(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleModels(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
+func handleModels(db *sql.DB, reg *providers.Registry, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		providerName := r.URL.Query().Get("provider")
 		keyIDStr := r.URL.Query().Get("keyId")
@@ -35,7 +35,7 @@ func handleModels(db *sql.DB, reg *providers.Registry) http.HandlerFunc {
 		var apiKey, baseURL string
 		if keyIDStr != "" {
 			if id, err := strconv.ParseInt(keyIDStr, 10, 64); err == nil && id > 0 {
-				apiKey, baseURL, _ = appdb.GetKeyValue(db, id)
+				apiKey, baseURL, _ = appdb.GetKeyValue(db, secret, id)
 			}
 		}
 

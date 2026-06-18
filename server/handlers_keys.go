@@ -10,9 +10,9 @@ import (
 	appdb "github.com/dodobird/llm-webui/db"
 )
 
-func handleListKeys(db *sql.DB) http.HandlerFunc {
+func handleListKeys(db *sql.DB, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		keys, err := appdb.ListKeys(db)
+		keys, err := appdb.ListKeys(db, secret)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -21,7 +21,7 @@ func handleListKeys(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleCreateKey(db *sql.DB) http.HandlerFunc {
+func handleCreateKey(db *sql.DB, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Provider string `json:"provider"`
@@ -33,7 +33,7 @@ func handleCreateKey(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "bad request", 400)
 			return
 		}
-		key, err := appdb.CreateKey(db, body.Provider, body.Label, body.KeyValue, body.BaseURL)
+		key, err := appdb.CreateKey(db, secret, body.Provider, body.Label, body.KeyValue, body.BaseURL)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
