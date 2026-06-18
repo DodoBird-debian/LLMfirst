@@ -1,0 +1,67 @@
+/* ── Design Tokens ────────────────────────────────────────────── */
+:root {
+  /* Palette */
+  --col-bg:          #0d0f14;
+  --col-surface:     #13161e;
+  --col-surface-2:   #1a1e2b;
+  --col-surface-3:   #222737;
+  --col-border:      rgba(255,255,255,0.07);
+  --col-border-2:    rgba(255,255,255,0.12);
+
+  /* Accent – electric violet/blue */
+  --col-accent:      #7c6af7;
+  --col-accent-2:    #5b52d6;
+  --col-accent-glow: rgba(124,106,247,0.28);
+  --col-accent-muted:rgba(124,106,247,0.12);
+
+  /* Text */
+  --col-text:        #e8eaf2;
+  --col-text-2:      #9198b4;
+  --col-text-3:      #5a6080;
+
+  /* Semantic */
+  --col-success:     #34d399;
+  --col-error:       #f87171;
+  --col-warning:     #fbbf24;
+
+  /* User bubble */
+  --col-user-bg:     #1e2a4a;
+  --col-user-border: rgba(124,106,247,0.25);
+
+  /* Assistant bubble */
+  --col-asst-bg:     #151820;
+  --col-asst-border: rgba(255,255,255,0.06);
+
+  /* Sidebar */
+  --sidebar-width:   260px;
+
+  /* Spacing */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+
+  /* Radius */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  16px;
+  --r-xl:  24px;
+  --r-full:9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 24px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 48px rgba(0,0,0,0.6);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Transitions */
+  --t-fast:   0.12s ease;
+  --t-mid:    0.22s ease;
+  --t-slow:   0.35s ease;
+}

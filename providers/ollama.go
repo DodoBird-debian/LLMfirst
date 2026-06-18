@@ -1,0 +1,119 @@
+package providers
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	appdb "github.com/dodobird/llm-webui/db"
+)
+
+// OllamaProvider implements Provider for local Ollama instances.
+type OllamaProvider struct {
+	db      *sql.DB
+	baseURL string
+}
+
+func NewOllamaProvider(db *sql.DB, baseURL string) *OllamaProvider {
+	return &OllamaProvider{db: db, baseURL: baseURL}
+}
+
+func (o *OllamaProvider) BaseURL() string { return o.baseURL }
+
+// SetBaseURL persists the new Ollama URL to settings and updates in memory.
+func (o *OllamaProvider) SetBaseURL(db *sql.DB, url string) error {
+	if err := appdb.SetSetting(db, "ollama_url", url); err != nil {
+		return err
+	}
+	o.baseURL = url
+	return nil
+}
+
+func (o *OllamaProvider) ListModels(ctx context.Context, apiKey, baseURL string) ([]string, error) {
+	url := o.baseURL
+	if baseURL != "" {
+		url = baseURL
+	}
+	resp, err := http.Get(url + "/api/tags")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, m := range result.Models {
+		names = append(names, m.Name)
+	}
+	return names, nil
+}
+
+func (o *OllamaProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message) (io.ReadCloser, error) {
+	url := o.baseURL
+	if baseURL != "" {
+		url = baseURL
+	}
+
+	payload := map[string]interface{}{
+		"model":    model,
+		"stream":   true,
+		"messages": messages,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url+"/api/chat", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("ollama: status %d", resp.StatusCode)
+	}
+
+	// Transform Ollama NDJSON into token lines
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+		defer resp.Body.Close()
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			var chunk struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+				Done bool `json:"done"`
+			}
+			if err := json.Unmarshal(scanner.Bytes(), &chunk); err != nil {
+				continue
+			}
+			if chunk.Done {
+				break
+			}
+			token := chunk.Message.Content
+			if strings.TrimSpace(token) != "" {
+				fmt.Fprintf(pw, "%s", token)
+			}
+		}
+	}()
+
+	return pr, nil
+}

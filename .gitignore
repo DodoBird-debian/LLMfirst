@@ -1,0 +1,17 @@
+# Binaries
+llm-webui
+llm-webui.exe
+*.exe
+
+# Database
+data.db
+*.db
+*.db-shm
+*.db-wal
+
+# Go workspaces
+go.work
+
+# OS Files
+.DS_Store
+Thumbs.db
