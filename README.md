@@ -49,4 +49,4 @@ You can pass the following command-line flags to customize the application behav
 - **Frontend**: Standard HTML5, CSS3, and ES6 JavaScript utilizing native APIs and `EventSource` for SSE streaming.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v2.0 - see the [LICENSE](LICENSE) file for details.
