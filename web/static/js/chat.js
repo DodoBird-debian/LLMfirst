@@ -30,7 +30,11 @@ window.sendMessage = async function() {
   updateCharCount();
 
   // Build messages array for API
-  const msgs = State.messages.map(m => ({role: m.role, content: m.content}));
+  let msgs = State.messages.map(m => ({role: m.role, content: m.content}));
+  const c = State.getActiveConv();
+  if (c && c.system_prompt) {
+    msgs.unshift({role: 'system', content: c.system_prompt});
+  }
 
   startStreaming(msgs);
 };
@@ -50,6 +54,9 @@ window.startStreaming = async function(msgs) {
         model: State.model,
         keyId: State.keyId,
         messages: msgs,
+        temperature: State.temperature,
+        top_p: State.topp,
+        max_tokens: State.max_tokens,
       }),
       signal: State.abortController.signal,
     });

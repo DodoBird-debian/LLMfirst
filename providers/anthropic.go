@@ -58,7 +58,7 @@ func (p *AnthropicProvider) ListModels(ctx context.Context, apiKey, baseURL stri
 	return names, nil
 }
 
-func (p *AnthropicProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message) (io.ReadCloser, error) {
+func (p *AnthropicProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message, opts Options) (io.ReadCloser, error) {
 	if baseURL == "" {
 		baseURL = "https://api.anthropic.com/v1"
 	}
@@ -73,14 +73,25 @@ func (p *AnthropicProvider) ChatStream(ctx context.Context, model, apiKey, baseU
 		chatMsgs = append(chatMsgs, map[string]string{"role": m.Role, "content": m.Content})
 	}
 
+	maxTokens := 8192
+	if opts.MaxTokens > 0 {
+		maxTokens = opts.MaxTokens
+	}
+
 	payload := map[string]interface{}{
 		"model":      model,
 		"stream":     true,
-		"max_tokens": 8192,
+		"max_tokens": maxTokens,
 		"messages":   chatMsgs,
 	}
 	if systemPrompt != "" {
 		payload["system"] = systemPrompt
+	}
+	if opts.Temperature > 0 {
+		payload["temperature"] = opts.Temperature
+	}
+	if opts.TopP > 0 {
+		payload["top_p"] = opts.TopP
 	}
 
 	body, _ := json.Marshal(payload)

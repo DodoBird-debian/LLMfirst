@@ -20,6 +20,9 @@ type chatRequest struct {
 	Model          string              `json:"model"`
 	KeyID          int64               `json:"keyId"`
 	Messages       []providers.Message `json:"messages"`
+	Temperature    float32             `json:"temperature,omitempty"`
+	TopP           float32             `json:"top_p,omitempty"`
+	MaxTokens      int                 `json:"max_tokens,omitempty"`
 }
 
 func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.HandlerFunc {
@@ -73,7 +76,13 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 			}
 		}
 
-		stream, err := p.ChatStream(r.Context(), req.Model, apiKey, baseURL, req.Messages)
+		opts := providers.Options{
+			Temperature: req.Temperature,
+			TopP:        req.TopP,
+			MaxTokens:   req.MaxTokens,
+		}
+
+		stream, err := p.ChatStream(r.Context(), req.Model, apiKey, baseURL, req.Messages, opts)
 		if err != nil {
 			fmt.Fprintf(w, "data: {\"error\": %q}\n\n", err.Error())
 			flusher.Flush()

@@ -10,6 +10,9 @@ window.State = {
   ollamaURL: 'http://localhost:11434',
   streaming: false,
   abortController: null,
+  temperature: 0.7,
+  topp: 1.0,
+  max_tokens: 0,
 
   setProvider(p) { this.provider = p; },
   setModel(m)    { this.model = m; },

@@ -60,6 +60,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('sidebar').classList.toggle('collapsed');
   });
 
+  // ── Sidebar search ─────────────────────────────────────────
+  const searchInput = document.getElementById('conv-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => renderConversationList());
+  }
+
+  // ── Theme toggle ───────────────────────────────────────────
+  const themeBtn = document.getElementById('btn-theme-toggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const isLight = document.body.dataset.theme === 'light';
+      document.body.dataset.theme = isLight ? 'dark' : 'light';
+      localStorage.setItem('theme', document.body.dataset.theme);
+    });
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) document.body.dataset.theme = savedTheme;
+  }
+
+  // ── Chat Settings ──────────────────────────────────────────
+  const chatSetBtn = document.getElementById('btn-chat-settings');
+  if (chatSetBtn) {
+    chatSetBtn.addEventListener('click', () => {
+      const c = State.getActiveConv();
+      if (!c) return;
+      document.getElementById('chat-system-prompt').value = c.system_prompt || '';
+      document.getElementById('chat-temperature').value = State.temperature || 0.7;
+      document.getElementById('val-temperature').textContent = State.temperature || 0.7;
+      document.getElementById('chat-topp').value = State.topp || 1.0;
+      document.getElementById('val-topp').textContent = State.topp || 1.0;
+      document.getElementById('chat-maxtokens').value = State.max_tokens || '';
+      document.getElementById('modal-chat-settings').style.display = 'flex';
+    });
+  }
+
+  const closeChatSetBtn = document.getElementById('btn-close-chat-settings');
+  if (closeChatSetBtn) {
+    closeChatSetBtn.addEventListener('click', () => document.getElementById('modal-chat-settings').style.display = 'none');
+  }
+
+  const saveChatSetBtn = document.getElementById('btn-save-chat-settings');
+  if (saveChatSetBtn) {
+    saveChatSetBtn.addEventListener('click', async () => {
+      const sysPrompt = document.getElementById('chat-system-prompt').value;
+      const temp = parseFloat(document.getElementById('chat-temperature').value);
+      const topP = parseFloat(document.getElementById('chat-topp').value);
+      const maxTok = parseInt(document.getElementById('chat-maxtokens').value) || 0;
+      
+      State.temperature = temp;
+      State.topp = topP;
+      State.max_tokens = maxTok;
+      
+      const c = State.getActiveConv();
+      if (c) {
+        c.system_prompt = sysPrompt;
+        await fetch(`/api/conversations/${c.id}`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({title: c.title, system_prompt: sysPrompt})
+        });
+      }
+      
+      document.getElementById('modal-chat-settings').style.display = 'none';
+      toast('Chat settings saved', 'success');
+    });
+  }
+  
+  // Real-time slider updates
+  const tempSlider = document.getElementById('chat-temperature');
+  if (tempSlider) {
+    tempSlider.addEventListener('input', e => document.getElementById('val-temperature').textContent = e.target.value);
+  }
+  const toppSlider = document.getElementById('chat-topp');
+  if (toppSlider) {
+    toppSlider.addEventListener('input', e => document.getElementById('val-topp').textContent = e.target.value);
+  }
+
   // ── Settings modal ─────────────────────────────────────────
   document.getElementById('btn-settings').addEventListener('click', () => {
     document.getElementById('modal-settings').style.display = 'flex';

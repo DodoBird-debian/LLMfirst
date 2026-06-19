@@ -11,14 +11,24 @@ window.toast = function(msg, type = '') {
 };
 
 // ── Conversations sidebar ──────────────────────────────────────
-window.renderConversationList = function() {
+window.renderConversationList = function(filterText = '') {
   const list = $('conversation-list');
-  if (!State.conversations.length) {
-    list.innerHTML = '<div class="empty-state">No conversations yet.<br/>Start a new chat above.</div>';
+  const searchEl = $('conv-search');
+  if (searchEl && searchEl.value) {
+    filterText = searchEl.value.toLowerCase();
+  }
+
+  let convs = State.conversations;
+  if (filterText) {
+    convs = convs.filter(c => c.title.toLowerCase().includes(filterText));
+  }
+
+  if (!convs.length) {
+    list.innerHTML = filterText ? '<div class="empty-state">No matches.</div>' : '<div class="empty-state">No conversations yet.<br/>Start a new chat above.</div>';
     return;
   }
   list.innerHTML = '';
-  State.conversations.forEach(c => {
+  convs.forEach(c => {
     const item = document.createElement('div');
     item.className = 'conv-item' + (c.id === State.activeConvId ? ' active' : '');
     item.dataset.id = c.id;
@@ -75,6 +85,8 @@ window.appendMessage = function(role, content, id) {
     <div class="msg-bubble">${renderMarkdown(content)}</div>
     <div class="msg-actions">
       <button class="msg-action-btn" onclick="copyMsg(this)">Copy</button>
+      ${role === 'user' ? '<button class="msg-action-btn" onclick="editMsg(this)">Edit</button>' : ''}
+      ${role === 'assistant' ? '<button class="msg-action-btn" onclick="regenerateMsg(this)">Regenerate</button>' : ''}
     </div>`;
 
   msgsEl.appendChild(div);
@@ -145,6 +157,44 @@ window.copyMsg = function(btn) {
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = 'Copy', 1500);
   });
+};
+
+window.editMsg = function(btn) {
+  const msgEl = btn.closest('.msg');
+  const msgId = msgEl.dataset.msgId;
+  const bubble = msgEl.querySelector('.msg-bubble');
+  if (!bubble) return;
+  // Get raw text from State
+  const stateMsg = State.messages.find(m => m.id == msgId);
+  if (!stateMsg) return;
+  
+  const input = $('msg-input');
+  input.value = stateMsg.content;
+  autoResize(input);
+  updateCharCount();
+  input.focus();
+  
+  // Truncate conversation to this point
+  const idx = State.messages.findIndex(m => m.id == msgId);
+  if (idx !== -1) {
+    State.messages = State.messages.slice(0, idx);
+    renderMessages();
+  }
+};
+
+window.regenerateMsg = function(btn) {
+  const msgEl = btn.closest('.msg');
+  const msgId = msgEl.dataset.msgId;
+  
+  // Truncate conversation to before this assistant message
+  const idx = State.messages.findIndex(m => m.id == msgId);
+  if (idx !== -1) {
+    State.messages = State.messages.slice(0, idx);
+    renderMessages();
+    // Restart stream with updated state
+    const msgs = State.messages.map(m => ({role: m.role, content: m.content}));
+    startStreaming(msgs);
+  }
 };
 
 // ── Model selector ─────────────────────────────────────────────
@@ -244,13 +294,16 @@ window.updateToolbarTitle = function() {
   const c = State.getActiveConv();
   const el = $('conv-title-display');
   const expBtn = $('btn-export');
+  const setBtn = $('btn-chat-settings');
   if (c) {
     el.textContent = c.title;
     el.style.display = '';
     expBtn.style.display = '';
+    setBtn.style.display = '';
   } else {
     el.style.display = 'none';
     expBtn.style.display = 'none';
+    setBtn.style.display = 'none';
   }
 };
 

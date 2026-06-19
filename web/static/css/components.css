@@ -438,9 +438,18 @@ select:focus  { border-color: var(--col-accent); box-shadow: 0 0 0 3px var(--col
   cursor: pointer;
   transition: all var(--t-fast);
   opacity: 0;
+  z-index: 10;
 }
 .msg-bubble pre:hover .code-copy-btn { opacity: 1; }
-.code-copy-btn:hover { background: var(--col-surface-3); color: var(--col-text); }
+.code-copy-btn:hover { background: rgba(255,255,255,0.2); color: var(--col-text); }
+
+/* Basic Syntax Highlighting */
+.hl-string { color: #a5d6ff; }
+.hl-number { color: #79c0ff; }
+.hl-keyword { color: #ff7b72; font-weight: 500; }
+[data-theme="light"] .hl-string { color: #0a3069; }
+[data-theme="light"] .hl-number { color: #0550ae; }
+[data-theme="light"] .hl-keyword { color: #cf222e; }
 
 /* ── Welcome page ─────────────────────────────────────────────── */
 .welcome-icon {

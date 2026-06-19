@@ -65,3 +65,27 @@
   --t-mid:    0.22s ease;
   --t-slow:   0.35s ease;
 }
+
+/* ── Light Theme Overrides ────────────────────────────────────── */
+[data-theme="light"] {
+  --col-bg:          #ffffff;
+  --col-surface:     #f4f5f8;
+  --col-surface-2:   #eaecef;
+  --col-surface-3:   #dce0e5;
+  --col-border:      rgba(0,0,0,0.08);
+  --col-border-2:    rgba(0,0,0,0.15);
+
+  --col-text:        #1e293b;
+  --col-text-2:      #475569;
+  --col-text-3:      #64748b;
+
+  --col-user-bg:     #eff6ff;
+  --col-user-border: rgba(124,106,247,0.3);
+
+  --col-asst-bg:     #f8fafc;
+  --col-asst-border: rgba(0,0,0,0.06);
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md:       0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg:       0 10px 32px rgba(0,0,0,0.08);
+}

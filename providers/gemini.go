@@ -76,7 +76,7 @@ func (p *GeminiProvider) ListModels(ctx context.Context, apiKey, baseURL string)
 	return names, nil
 }
 
-func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message) (io.ReadCloser, error) {
+func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message, opts Options) (io.ReadCloser, error) {
 	if baseURL == "" || strings.Contains(baseURL, "streamGenerateContent") || strings.Contains(baseURL, "/models/") {
 		baseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
@@ -108,6 +108,20 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		payload["system_instruction"] = map[string]interface{}{
 			"parts": systemInstruction.Parts,
 		}
+	}
+
+	genConfig := map[string]interface{}{}
+	if opts.Temperature > 0 {
+		genConfig["temperature"] = opts.Temperature
+	}
+	if opts.TopP > 0 {
+		genConfig["topP"] = opts.TopP
+	}
+	if opts.MaxTokens > 0 {
+		genConfig["maxOutputTokens"] = opts.MaxTokens
+	}
+	if len(genConfig) > 0 {
+		payload["generationConfig"] = genConfig
 	}
 	body, _ := json.Marshal(payload)
 

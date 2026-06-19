@@ -60,7 +60,7 @@ func (p *OpenAIProvider) ListModels(ctx context.Context, apiKey, baseURL string)
 	return names, nil
 }
 
-func (p *OpenAIProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message) (io.ReadCloser, error) {
+func (p *OpenAIProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message, opts Options) (io.ReadCloser, error) {
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
@@ -78,6 +78,15 @@ func (p *OpenAIProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		"model":    model,
 		"stream":   true,
 		"messages": oaiMsgs,
+	}
+	if opts.Temperature > 0 {
+		payload["temperature"] = opts.Temperature
+	}
+	if opts.TopP > 0 {
+		payload["top_p"] = opts.TopP
+	}
+	if opts.MaxTokens > 0 {
+		payload["max_tokens"] = opts.MaxTokens
 	}
 	body, _ := json.Marshal(payload)
 

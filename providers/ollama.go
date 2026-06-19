@@ -61,7 +61,7 @@ func (o *OllamaProvider) ListModels(ctx context.Context, apiKey, baseURL string)
 	return names, nil
 }
 
-func (o *OllamaProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message) (io.ReadCloser, error) {
+func (o *OllamaProvider) ChatStream(ctx context.Context, model, apiKey, baseURL string, messages []Message, opts Options) (io.ReadCloser, error) {
 	url := o.baseURL
 	if baseURL != "" {
 		url = baseURL
@@ -71,6 +71,20 @@ func (o *OllamaProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		"model":    model,
 		"stream":   true,
 		"messages": messages,
+	}
+
+	options := map[string]interface{}{}
+	if opts.Temperature > 0 {
+		options["temperature"] = opts.Temperature
+	}
+	if opts.TopP > 0 {
+		options["top_p"] = opts.TopP
+	}
+	if opts.MaxTokens > 0 {
+		options["num_predict"] = opts.MaxTokens
+	}
+	if len(options) > 0 {
+		payload["options"] = options
 	}
 	body, _ := json.Marshal(payload)
 

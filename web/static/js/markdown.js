@@ -11,7 +11,15 @@ window.renderMarkdown = function(text) {
   // Fenced code blocks ```lang\n...\n```
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
     const id = 'code-' + Math.random().toString(36).slice(2,8);
-    return `<pre id="${id}" style="position:relative"><button class="code-copy-btn" onclick="copyCode('${id}')">Copy</button><code class="lang-${lang}">${code.trim()}</code></pre>`;
+    
+    // Very basic syntax highlighting for strings, numbers, and common keywords
+    const keywords = 'const|let|var|function|class|import|export|return|if|else|for|while|package|func|type|struct|interface|def|from|bool|int|string|err|nil|true|false';
+    const highlighted = code
+      .replace(/(["'].*?["'])/g, '<span class="hl-string">$1</span>') // Strings
+      .replace(/\b(\d+)\b/g, '<span class="hl-number">$1</span>') // Numbers
+      .replace(new RegExp(`\\b(${keywords})\\b`, 'g'), '<span class="hl-keyword">$1</span>');
+      
+    return `<pre id="${id}" style="position:relative"><button class="code-copy-btn" onclick="copyCode('${id}')">Copy</button><code class="lang-${lang}">${highlighted.trim()}</code></pre>`;
   });
 
   // Inline code
