@@ -8,7 +8,11 @@ All assets are embedded within the binary, and it uses a local SQLite database f
 - **Multi-Provider Support**: Chat with Ollama, OpenAI, Anthropic (Claude), and Google Gemini.
 - **Single Binary Deployment**: No Node.js, no Docker, no Python required. Just download and run.
 - **Local SQLite Persistence**: Conversations, messages, settings, and API keys are stored in a local `data.db` file.
-- **Vanilla JS Frontend**: Incredibly fast, responsive UI without heavy JS frameworks. Includes a custom markdown parser and smooth micro-animations.
+- **Vanilla JS Frontend**: Incredibly fast, responsive UI without heavy JS frameworks. Includes a custom markdown parser with syntax highlighting and smooth micro-animations.
+- **Advanced Inference Controls**: Fine-tune Temperature, Top-P, Max Tokens, and System Prompts per conversation.
+- **Message Workflows**: Edit your past prompts to effortlessly branch history, or Regenerate assistant responses instantly.
+- **Dynamic Theming**: Seamless Light and Dark mode toggle.
+- **Fast Search**: Instantly filter your local conversation history.
 
 ## Getting Started
 
