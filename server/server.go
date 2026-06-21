@@ -46,6 +46,10 @@ func NewRouter(db *sql.DB, cfg config.Config) http.Handler {
 		// Chat (SSE streaming)
 		r.Post("/api/chat", handleChat(db, reg, cfg.Secret))
 
+		// File Uploads
+		r.Post("/api/upload", handleFileUpload(db))
+		r.Delete("/api/attachments/{id}", handleDeleteAttachment(db))
+
 		// Ollama
 		r.Get("/api/ollama/status", handleOllamaStatus(reg))
 		r.Put("/api/ollama/url", handleOllamaURL(db, reg))
