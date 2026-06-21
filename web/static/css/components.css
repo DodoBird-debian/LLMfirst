@@ -884,3 +884,45 @@ select:focus  { border-color: var(--col-accent); box-shadow: 0 0 0 3px var(--col
   height: 14px;
   cursor: pointer;
 }
+
+/* ── Attachments ── */
+.attachment-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--col-border);
+}
+
+.attachment-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--col-surface-2);
+  border: 1px solid var(--col-border);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  color: var(--col-text);
+}
+
+.attachment-pill .remove-btn {
+  background: none;
+  border: none;
+  color: var(--col-text-3);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.attachment-pill .remove-btn:hover {
+  color: var(--col-error);
+}
+
+#btn-attach {
+  color: var(--col-text-3);
+}
+#btn-attach:hover {
+  color: var(--col-accent);
+}

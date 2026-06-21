@@ -28,6 +28,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── New chat ───────────────────────────────────────────────
   document.getElementById('btn-new-chat').addEventListener('click', startNewChat);
 
+  // ── Listeners ──────────────────────────────────────────────────
+  document.getElementById('btn-sidebar-toggle').addEventListener('click', window.toggleSidebar);
+  document.getElementById('btn-theme-toggle').addEventListener('click', window.toggleTheme);
+  document.getElementById('btn-new-chat').addEventListener('click', window.startNewChat);
+  document.getElementById('msg-input').addEventListener('input', (e) => {
+    window.autoResize(e.target);
+    window.updateCharCount();
+  });
+  document.getElementById('msg-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      window.sendMessage();
+    }
+  });
+
+  const attachBtn = document.getElementById('btn-attach');
+  const fileInput = document.getElementById('file-upload');
+  if (attachBtn && fileInput) {
+    attachBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        window.handleFileUpload(e.target.files);
+      }
+    });
+  }
+
   // ── Send / Stop ────────────────────────────────────────────
   document.getElementById('btn-send').addEventListener('click', sendMessage);
   document.getElementById('btn-stop').addEventListener('click', () => {

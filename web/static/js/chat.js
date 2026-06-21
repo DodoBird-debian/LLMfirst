@@ -273,3 +273,64 @@ window.exportConversation = function() {
   a.download = c.title.replace(/[^a-z0-9]/gi,'_') + '.md';
   a.click();
 };
+
+// ── File Uploads ───────────────────────────────────────────────
+window.handleFileUpload = async function(files) {
+  if (!State.activeConvId) {
+    const conv = await createNewConversation();
+    if (!conv) {
+      toast('Failed to create conversation for upload', 'error');
+      return;
+    }
+  }
+
+  const preview = document.getElementById('attachment-preview');
+  preview.style.display = 'flex';
+
+  for (const file of files) {
+    const pillId = 'pill-' + Date.now() + Math.floor(Math.random()*1000);
+    const pill = document.createElement('div');
+    pill.className = 'attachment-pill';
+    pill.id = pillId;
+    pill.innerHTML = `<span>⏳ ${file.name}</span>`;
+    preview.appendChild(pill);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversationId', State.activeConvId);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      
+      pill.innerHTML = `
+        <span>📎 ${data.filename}</span>
+        <button class="remove-btn" onclick="removeAttachment('${data.id}', '${pillId}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+    } catch (err) {
+      pill.innerHTML = `<span style="color:red">❌ ${file.name} (failed)</span>`;
+      setTimeout(() => pill.remove(), 3000);
+      toast('Upload failed: ' + err.message, 'error');
+    }
+  }
+  document.getElementById('file-upload').value = '';
+};
+
+window.removeAttachment = async function(id, pillId) {
+  try {
+    await fetch('/api/attachments/' + id, { method: 'DELETE' });
+    document.getElementById(pillId).remove();
+    const preview = document.getElementById('attachment-preview');
+    if (preview.children.length === 0) {
+      preview.style.display = 'none';
+    }
+  } catch (err) {
+    toast('Failed to remove attachment', 'error');
+  }
+};

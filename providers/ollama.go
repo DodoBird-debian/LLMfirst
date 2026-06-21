@@ -67,10 +67,31 @@ func (o *OllamaProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		url = baseURL
 	}
 
+	type ollamaMsg struct {
+		Role    string   `json:"role"`
+		Content string   `json:"content"`
+		Images  []string `json:"images,omitempty"`
+	}
+	var oMsgs []ollamaMsg
+	for _, m := range messages {
+		oMsg := ollamaMsg{Role: m.Role, Content: m.Content}
+		for _, img := range m.Images {
+			if strings.HasPrefix(img, "data:") {
+				parts := strings.SplitN(img, ";base64,", 2)
+				if len(parts) == 2 {
+					oMsg.Images = append(oMsg.Images, parts[1])
+				}
+			} else {
+				oMsg.Images = append(oMsg.Images, img)
+			}
+		}
+		oMsgs = append(oMsgs, oMsg)
+	}
+
 	payload := map[string]interface{}{
 		"model":    model,
 		"stream":   true,
-		"messages": messages,
+		"messages": oMsgs,
 	}
 
 	options := map[string]interface{}{}

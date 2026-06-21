@@ -31,14 +31,13 @@ func (p *GeminiProvider) ListModels(ctx context.Context, apiKey, baseURL string)
 	if err != nil {
 		return nil, err
 	}
-	q := base.Query()
-	q.Set("key", strings.TrimSpace(apiKey))
-	base.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", base.String(), nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("x-goog-api-key", strings.TrimSpace(apiKey))
+	
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -81,8 +80,13 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		baseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
 
+	type inlineData struct {
+		MimeType string `json:"mime_type"`
+		Data     string `json:"data"`
+	}
 	type part struct {
-		Text string `json:"text"`
+		Text       string      `json:"text,omitempty"`
+		InlineData *inlineData `json:"inline_data,omitempty"`
 	}
 	type content struct {
 		Role  string `json:"role"`
@@ -100,7 +104,26 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 			systemInstruction = &content{Role: "system", Parts: []part{{Text: m.Content}}}
 			continue
 		}
-		contents = append(contents, content{Role: role, Parts: []part{{Text: m.Content}}})
+
+		var parts []part
+		if m.Content != "" {
+			parts = append(parts, part{Text: m.Content})
+		}
+		for _, img := range m.Images {
+			if strings.HasPrefix(img, "data:") {
+				partsArr := strings.SplitN(img, ";base64,", 2)
+				if len(partsArr) == 2 {
+					mimeType := strings.TrimPrefix(partsArr[0], "data:")
+					parts = append(parts, part{InlineData: &inlineData{MimeType: mimeType, Data: partsArr[1]}})
+				}
+			}
+		}
+		// If empty, ensure at least empty text to prevent API error
+		if len(parts) == 0 {
+			parts = append(parts, part{Text: " "})
+		}
+
+		contents = append(contents, content{Role: role, Parts: parts})
 	}
 
 	payload := map[string]interface{}{"contents": contents}
@@ -130,7 +153,6 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		return nil, err
 	}
 	sq := streamURL.Query()
-	sq.Set("key", strings.TrimSpace(apiKey))
 	sq.Set("alt", "sse")
 	streamURL.RawQuery = sq.Encode()
 
@@ -139,6 +161,7 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, model, apiKey, baseURL 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", strings.TrimSpace(apiKey))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

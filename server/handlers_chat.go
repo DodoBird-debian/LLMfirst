@@ -48,6 +48,46 @@ func handleChat(db *sql.DB, reg *providers.Registry, secret string) http.Handler
 			}
 		}
 
+		// Inject attachments if any
+		if req.ConversationID != "" {
+			attachments, _ := appdb.GetAttachmentsByConversation(db, req.ConversationID)
+			if len(attachments) > 0 {
+				attachContext := "\n\n--- ATTACHED FILES ---\n"
+				var imageBase64s []string
+
+				for _, a := range attachments {
+					if a.ExtractedText != "" {
+						attachContext += fmt.Sprintf("File: %s\n%s\n\n", a.Filename, a.ExtractedText)
+					}
+					if a.ImageBase64 != "" {
+						if req.Provider == "gemini" || req.Provider == "ollama" {
+							imageBase64s = append(imageBase64s, a.ImageBase64)
+						}
+					}
+				}
+				attachContext += "----------------------\n"
+
+				// Prepend text to the system prompt
+				if len(req.Messages) > 0 {
+					if req.Messages[0].Role == "system" {
+						req.Messages[0].Content += attachContext
+					} else {
+						req.Messages = append([]providers.Message{{Role: "system", Content: attachContext}}, req.Messages...)
+					}
+
+					// Append images to the last user message
+					if len(imageBase64s) > 0 {
+						for i := len(req.Messages) - 1; i >= 0; i-- {
+							if req.Messages[i].Role == "user" {
+								req.Messages[i].Images = append(req.Messages[i].Images, imageBase64s...)
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// Set SSE headers
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")

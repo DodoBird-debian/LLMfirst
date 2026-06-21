@@ -7,8 +7,9 @@ import (
 
 // Message is a single chat message sent to a provider.
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images,omitempty"`
 }
 
 // Options contains LLM generation parameters

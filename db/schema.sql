@@ -49,3 +49,14 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    extracted_text TEXT,
+    image_base64 TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
