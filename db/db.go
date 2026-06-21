@@ -18,11 +18,11 @@ func OpenDB(path string) (*sql.DB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	// Enable explicit foreign key constraints and WAL journaling mode
+	// Enable explicit foreign key constraints and standard DELETE journaling mode (no extra files)
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON;`); err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(`PRAGMA journal_mode = WAL;`); err != nil {
+	if _, err := db.Exec(`PRAGMA journal_mode = DELETE;`); err != nil {
 		return nil, err
 	}
 	return db, nil
