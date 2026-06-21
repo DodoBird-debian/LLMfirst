@@ -298,13 +298,11 @@ window.updateToolbarTitle = function() {
   if (c) {
     el.textContent = c.title;
     el.style.display = '';
-    expBtn.style.display = '';
-    setBtn.style.display = '';
   } else {
     el.style.display = 'none';
-    expBtn.style.display = 'none';
-    setBtn.style.display = 'none';
   }
+  expBtn.style.display = '';
+  setBtn.style.display = '';
 };
 
 // ── Rename modal ───────────────────────────────────────────────

@@ -83,8 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (chatSetBtn) {
     chatSetBtn.addEventListener('click', () => {
       const c = State.getActiveConv();
-      if (!c) return;
-      document.getElementById('chat-system-prompt').value = c.system_prompt || '';
+      document.getElementById('chat-system-prompt').value = c ? (c.system_prompt || '') : (State.pendingSystemPrompt || '');
       document.getElementById('chat-temperature').value = State.temperature || 0.7;
       document.getElementById('val-temperature').textContent = State.temperature || 0.7;
       document.getElementById('chat-topp').value = State.topp || 1.0;
@@ -119,6 +118,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({title: c.title, system_prompt: sysPrompt})
         });
+      } else {
+        State.pendingSystemPrompt = sysPrompt;
       }
       
       document.getElementById('modal-chat-settings').style.display = 'none';

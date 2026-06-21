@@ -133,11 +133,13 @@ window.startStreaming = async function(msgs) {
 // ── Conversation lifecycle ─────────────────────────────────────
 window.createNewConversation = async function() {
   try {
+    const sysPrompt = State.pendingSystemPrompt || '';
     const res = await fetch('/api/conversations', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({provider: State.provider, model: State.model, system_prompt:''}),
+      body: JSON.stringify({provider: State.provider, model: State.model, system_prompt: sysPrompt}),
     });
+    State.pendingSystemPrompt = '';
     if (!res.ok) return null;
     const conv = await res.json();
     State.conversations.unshift(conv);
@@ -260,7 +262,7 @@ window.updateCharCount = function() {
 // ── Export ─────────────────────────────────────────────────────
 window.exportConversation = function() {
   const c = State.getActiveConv();
-  if (!c) return;
+  if (!c) { toast('Start a conversation first to export', 'error'); return; }
   let md = `# ${c.title}\n\n_Provider: ${c.provider} · Model: ${c.model}_\n\n---\n\n`;
   State.messages.forEach(m => {
     md += `**${m.role === 'user' ? 'You' : 'Assistant'}:**\n\n${m.content}\n\n---\n\n`;
