@@ -2,6 +2,7 @@
 llm-webui
 llm-webui.exe
 *.exe
+builtbins/
 
 # Database
 data.db
@@ -15,3 +16,4 @@ go.work
 # OS Files
 .DS_Store
 Thumbs.db
+
