@@ -209,7 +209,17 @@ func handleGetConversation(db *sql.DB) http.HandlerFunc {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		writeJSON(w, map[string]interface{}{"conversation": conv, "messages": msgs})
+		attachments, _ := appdb.GetAttachmentsByConversation(db, id)
+		
+		// Omit large base64 strings or extracted text if we only need metadata for UI
+		// Wait, the struct has `json:"image_base64"` and `json:"extracted_text"`
+		// Since it's for UI, we can just send it, or clear them out to save bandwidth.
+		// Actually, sending them is fine as it's local. Let's just send attachments.
+		writeJSON(w, map[string]interface{}{
+			"conversation": conv,
+			"messages":     msgs,
+			"attachments":  attachments,
+		})
 	}
 }
 
